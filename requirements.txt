@@ -1,0 +1,47 @@
+anaconda-anon-usage @ file:///C:/b/abs_76_7r7k0xr/croot/anaconda-anon-usage_1743190159829/work
+annotated-types @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/annotated-types_1729043709318/work
+archspec @ file:///croot/archspec_1709217642129/work
+boltons @ file:///C:/b/abs_45_52ughkz/croot/boltons_1737061711836/work
+Brotli @ file:///C:/b/abs_c415aux9ra/croot/brotli-split_1736182803933/work
+certifi @ file:///C:/b/abs_3beajm7umk/croot/certifi_1745939228545/work/certifi
+cffi @ file:///C:/b/abs_29_b57if3f/croot/cffi_1736184144340/work
+charset-normalizer @ file:///croot/charset-normalizer_1721748349566/work
+colorama @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/colorama_1729036581634/work
+conda @ file:///C:/b/abs_95xxia215w/croot/conda_1743715315076/work/conda-src
+conda-anaconda-telemetry @ file:///C:/b/abs_8fisg12wdf/croot/conda-anaconda-telemetry_1744662558247/work
+conda-anaconda-tos @ file:///C:/b/abs_74fnpuprm8/croot/conda-anaconda-tos_1744823887798/work
+conda-content-trust @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/conda-content-trust_1729088072778/work
+conda-libmamba-solver @ file:///croot/conda-libmamba-solver_1745607008911/work/src
+conda-package-handling @ file:///C:/b/abs_7fz3aferfv/croot/conda-package-handling_1731369038903/work
+conda_package_streaming @ file:///C:/b/abs_bdz9vbvbh2/croot/conda-package-streaming_1731366449946/work
+cryptography @ file:///C:/b/abs_ae5lrkywtg/croot/cryptography_1740577842775/work
+distro @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/distro_1729059153117/work
+frozendict @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/frozendict_1729090952168/work
+idna @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/idna_1729038997316/work
+jsonpatch @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/jsonpatch_1729054776004/work
+jsonpointer==2.1
+libmambapy @ file:///C:/b/abs_627vsv8bhu/croot/mamba-split_1734469608328/work/libmambapy
+markdown-it-py @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/markdown-it-py_1729039967492/work
+mdurl @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/mdurl_1729039154828/work
+menuinst @ file:///C:/b/abs_fblttj5gp1/croot/menuinst_1738943438301/work
+packaging @ file:///C:/b/abs_3by6s2fa66/croot/packaging_1734472138782/work
+platformdirs @ file:///C:/b/abs_ddh15014or/croot/platformdirs_1744273060660/work
+pluggy @ file:///C:/b/abs_dfec_m79vo/croot/pluggy_1733170145382/work
+pycosat @ file:///C:/b/abs_18nblzzn70/croot/pycosat_1736868434419/work
+pycparser @ file:///tmp/build/80754af9/pycparser_1636541352034/work
+pydantic @ file:///C:/b/abs_27dx58x550/croot/pydantic_1734736090499/work
+pydantic_core @ file:///C:/b/abs_bdosz7qwys/croot/pydantic-core_1734726071532/work
+Pygments @ file:///C:/b/abs_e4bg5vh5j_/croot/pygments_1744667628203/work
+PySocks @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/pysocks_1729039320841/work
+requests @ file:///C:/b/abs_c3508vg8ez/croot/requests_1731000584867/work
+rich @ file:///C:/b/abs_8b92fzmygg/croot/rich_1732638991774/work
+ruamel.yaml @ file:///C:/b/abs_0dn1nhdq75/croot/ruamel.yaml_1745960327187/work
+ruamel.yaml.clib @ file:///C:/b/abs_475flulhy_/croot/ruamel.yaml.clib_1745937166245/work
+setuptools==78.1.1
+tqdm @ file:///C:/b/abs_0eh9b6xugj/croot/tqdm_1738945553987/work
+truststore @ file:///C:/b/abs_494cm143zh/croot/truststore_1736550137835/work
+typing_extensions @ file:///C:/b/abs_0ffjxtihug/croot/typing_extensions_1734714875646/work
+urllib3 @ file:///C:/b/abs_7bst06lizn/croot/urllib3_1737133657081/work
+wheel==0.45.1
+win_inet_pton @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/win_inet_pton_1729038644686/work
+zstandard @ file:///C:/b/abs_31t8xmrv_h/croot/zstandard_1731356578015/work
