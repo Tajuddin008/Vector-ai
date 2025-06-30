@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector AI - API Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 2em; }
+        #response { background-color: #f0f0f0; border: 1px solid #ccc; padding: 1em; margin-top: 1em; white-space: pre-wrap; word-wrap: break-word; }
+        #status { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Vector-AI API Test Page</h1>
+    <p>Select an image to send to the <code>/api/segment</code> endpoint.</p>
+    
+    <input type="file" id="imageFile" accept="image/*">
+    <button onclick="uploadImage()">Upload and Segment</button>
+
+    <hr>
+
+    <h2>Server Response:</h2>
+    <p id="status">Waiting for upload...</p>
+    <pre id="response"></pre>
+
+    <script>
+        async function uploadImage() {
+            const fileInput = document.getElementById('imageFile');
+            const statusElem = document.getElementById('status');
+            const responseElem = document.getElementById('response');
+
+            if (fileInput.files.length === 0) {
+                alert('Please select an image file first!');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            statusElem.textContent = 'Uploading and processing... This might take a moment.';
+            responseElem.textContent = '';
+
+            try {
+                // This is the JavaScript function that calls our Python API
+                const response = await fetch('/api/segment', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusElem.textContent = `Success! Received ${result.length} masks.`;
+                    // Display the result beautifully formatted
+                    responseElem.textContent = JSON.stringify(result, null, 2);
+                } else {
+                    statusElem.textContent = 'An error occurred on the server.';
+                    responseElem.textContent = JSON.stringify(result, null, 2);
+                }
+            } catch (error) {
+                statusElem.textContent = 'A network error occurred.';
+                responseElem.textContent = error;
+            }
+        }
+    </script>
+</body>
+</html>
