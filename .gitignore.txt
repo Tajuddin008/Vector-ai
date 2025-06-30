@@ -1,0 +1,14 @@
+# Python cache
+__pycache__/
+
+# Large model files - DO NOT UPLOAD!
+*.pth
+
+# IDE and OS specific files
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary user uploads or outputs
+uploads/
+outputs/
