@@ -144,15 +144,12 @@ def load_model_secure():
     except Exception as e:
         raise RuntimeError(f"Model loading failed: {str(e)}")
 
+# In ai_core.py
+
 def process_image(image):
-    # Check if max_dimension exists and is a number, otherwise use original size
-    max_dim = CONFIG.get("max_dimension")
-    if isinstance(max_dim, (int, float)) and max_dim > 0:
-        ratio = min(max_dim / image.size[0], max_dim / image.size[1])
-        if ratio < 1.0: # Only downscale, don't upscale
-            new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
-            return np.array(image.resize(new_size, Image.LANCZOS))
-    return np.array(image)
+    ratio = min(CONFIG["max_dimension"]/image.size[0], CONFIG["max_dimension"]/image.size[1])
+    new_size = (int(image.size[0]*ratio), int(image.size[1]*ratio))
+    return np.array(image.resize(new_size, Image.LANCZOS))
 
 
 def process_contour(contour):
