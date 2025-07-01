@@ -385,3 +385,126 @@ def draw_door_symbol_svg(svg_elements, p1, p2, wall_thickness, H, W):
     jamb2_p1, jamb2_p2 = latch_center - v_perp * wall_thickness/2, latch_center + v_perp * wall_thickness/2
     svg_elements.append(f'  <line x1="{jamb1_p1[1]}" y1="{jamb1_p1[0]}" x2="{jamb1_p2[1]}" y2="{jamb1_p2[0]}" stroke="rgb({",".join(map(str, CONFIG["WALL_COLOR"]))})" stroke-width="1"/>')
     svg_elements.append(f'  <line x1="{jamb2_p1[1]}" y1="{jamb2_p1[0]}" x2="{jamb2_p2[1]}" y2="{jamb2_p2[0]}" stroke="rgb({",".join(map(str, CONFIG["WALL_COLOR"]))})" stroke-width="1"/>')
+
+
+    # Add this code to the end of your ai_core.py file
+
+def _idealize_contour(contour, dominant_y_grid, dominant_x_grid):
+    if len(contour) < 4 or dominant_y_grid.size < 2 or dominant_x_grid.size < 2: return contour
+    idealized_pts = [[dominant_y_grid[np.argmin(np.abs(dominant_y_grid - pt[0]))], dominant_x_grid[np.argmin(np.abs(dominant_x_grid - pt[1]))]] for pt in contour]
+    final_path = []
+    if idealized_pts:
+        final_path.append(np.array(idealized_pts[0]))
+        for i in range(1, len(idealized_pts)):
+            next_pt, prev_pt = np.array(idealized_pts[i]), final_path[-1]
+            if np.allclose(next_pt, prev_pt): continue
+            delta_y, delta_x = abs(next_pt[0] - prev_pt[0]), abs(next_pt[1] - prev_pt[1])
+            if delta_y > 1e-3 and delta_x > 1e-3:
+                if delta_x > delta_y: final_path.append(np.array([prev_pt[0], next_pt[1]]))
+                else: final_path.append(np.array([next_pt[0], prev_pt[1]]))
+            if not np.allclose(final_path[-1], next_pt): final_path.append(next_pt)
+    unique_path = [final_path[0]] if final_path else []
+    for i in range(1, len(final_path)):
+        if np.linalg.norm(final_path[i] - unique_path[-1]) > 1.0: unique_path.append(final_path[i])
+    return np.array(unique_path)
+
+def _hybrid_simplify_contour(contour):
+    if len(contour) < 3: return contour
+    new_points = [contour[0]]
+    angle_tol = CONFIG["HYBRID_ORTHO_ANGLE_TOLERANCE"]
+    i = 0
+    while i < len(contour) - 1:
+        p1, p2 = new_points[-1], contour[i+1]
+        dy, dx = p2[0] - p1[0], p2[1] - p1[1]
+        if abs(dx) < 1e-6 and abs(dy) < 1e-6:
+            i += 1; continue
+        angle = math.degrees(math.atan2(dy, dx)) % 360
+        if (abs(angle) < angle_tol) or (abs(angle - 180) < angle_tol) or (abs(angle - 360) < angle_tol):
+            new_p2 = (p1[0], p2[1]) # Snap to horizontal
+        elif (abs(angle - 90) < angle_tol) or (abs(angle - 270) < angle_tol):
+            new_p2 = (p2[0], p1[1]) # Snap to vertical
+        else:
+            new_p2 = tuple(p2) # Keep original
+        if tuple(new_p2) != tuple(p1):
+             new_points.append(np.array(new_p2))
+        i += 1
+    return measure.approximate_polygon(np.array(new_points), tolerance=CONFIG["RDP_TOLERANCE"])
+
+def get_final_architectural_contour(contour, vectorization_mode, grid_y=None, grid_x=None):
+    if len(contour) < 4: return None
+    simplified = process_contour(contour)
+    if simplified.size < 3: return None
+    
+    mode = vectorization_mode
+    if mode in [VectorizationMode.MINIMALIST, VectorizationMode.TACTILE]:
+        base_map = {VectorizationMode.MINIMALIST: VectorizationMode.IDEALIZE, VectorizationMode.TACTILE: VectorizationMode.TRACE}
+        mode = base_map.get(mode, VectorizationMode.TRACE)
+
+    if mode == VectorizationMode.IDEALIZE:
+        if grid_y is None or grid_x is None or grid_y.size < 2 or grid_x.size < 2:
+             print("Warning: Idealization grid not available, falling back to Hybrid.")
+             return _hybrid_simplify_contour(simplified)
+        idealized = _idealize_contour(simplified, grid_y, grid_x)
+        if idealized.size < 3: return None
+        return measure.approximate_polygon(idealized, tolerance=CONFIG["RDP_TOLERANCE"])
+    
+    elif mode == VectorizationMode.HYBRID:
+        return _hybrid_simplify_contour(simplified)
+    
+    # ... Add other modes like TRACE, SIMPLIFY, RAW if needed, following the pattern ...
+    
+    else: # Default fallback
+        return measure.approximate_polygon(simplified, tolerance=CONFIG["RDP_TOLERANCE"])
+
+def vectorize_floorplan(raw_masks, image_shape, vectorization_mode):
+    """
+    High-level function to perform the entire vectorization process.
+    This is the single source of truth for both desktop and web apps.
+    """
+    # 1. Filter masks to find rooms
+    min_area_override = CONFIG["MINIMALIST_MIN_ROOM_AREA"] if vectorization_mode == VectorizationMode.MINIMALIST else None
+    final_room_masks = filter_and_get_rooms(raw_masks, min_area_override=min_area_override)
+    
+    # 2. Calculate grid if needed
+    grid_y, grid_x = np.array([]), np.array([])
+    if vectorization_mode in [VectorizationMode.IDEALIZE, VectorizationMode.HYBRID, VectorizationMode.ARCHITECTURAL_CLEAN, VectorizationMode.MINIMALIST]:
+        grid_y, grid_x = calculate_global_orthogonal_grid(final_room_masks, image_shape)
+        
+    # 3. Process each room mask into a finalized polygon
+    finalized_polygons = []
+    for m in final_room_masks:
+        contours = measure.find_contours(m['segmentation'], 0.5)
+        if not contours: continue
+        largest_contour = max(contours, key=lambda c: len(c))
+        
+        processed_contour = get_final_architectural_contour(largest_contour, vectorization_mode, grid_y, grid_x)
+        
+        if processed_contour is not None and len(processed_contour) > 2:
+            # Ensure validity
+            poly = Polygon(processed_contour)
+            if not poly.is_valid:
+                poly = poly.buffer(0)
+            if not poly.is_empty:
+                finalized_polygons.append(np.array(poly.exterior.coords))
+
+    # 4. Calculate the exterior polygon from the union of all rooms
+    exterior_polygon = None
+    if finalized_polygons:
+        shapely_polygons = [Polygon(p) for p in finalized_polygons if p is not None and len(p) > 2 and Polygon(p).is_valid]
+        if shapely_polygons:
+            try:
+                unified_shape = unary_union([p.buffer(0) for p in shapely_polygons])
+                if not unified_shape.is_empty:
+                    if isinstance(unified_shape, Polygon):
+                        exterior_contour = np.array(unified_shape.exterior.coords)
+                    elif isinstance(unified_shape, MultiPolygon):
+                        exterior_contour = np.array(max(unified_shape.geoms, key=lambda p: p.area).exterior.coords)
+                    else:
+                        exterior_contour = None
+                    
+                    if exterior_contour is not None:
+                        exterior_polygon = get_final_architectural_contour(exterior_contour, vectorization_mode, grid_y, grid_x)
+            except Exception as e:
+                print(f"Warning: Could not unify polygons for exterior: {e}")
+
+    return finalized_polygons, exterior_polygon

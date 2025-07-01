@@ -531,39 +531,41 @@ class FloorplanEditor:
         self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         self.fig.canvas.mpl_connect('key_release_event', self.on_key_release)
 
-    def reprocess_from_masks(self, new_masks=None, save_state=True):
-        self.app.update_status("Reprocessing from segmentation...")
-        if new_masks is not None: self.raw_masks = new_masks
-        
-        manual_walls, manual_lines = self.walls[:], self.lines[:]
-        manual_doors, manual_windows, manual_furniture = self.doors[:], self.windows[:], self.furniture[:]
+# In desktop_app.py, inside the FloorplanEditor class
 
-        min_area_override = ai_core.CONFIG["MINIMALIST_MIN_ROOM_AREA"] if self.vectorization_mode == ai_core.VectorizationMode.MINIMALIST else None
-        self.final_room_masks = ai_core.filter_and_get_rooms(self.raw_masks, min_area_override=min_area_override)
-        
-        active_geom_mode = self.vectorization_mode
-        if active_geom_mode == ai_core.VectorizationMode.MINIMALIST:
-            active_geom_mode = ai_core.VectorizationMode.IDEALIZE
-        
-        if active_geom_mode in [ai_core.VectorizationMode.IDEALIZE, ai_core.VectorizationMode.HYBRID, ai_core.VectorizationMode.ARCHITECTURAL_CLEAN]:
-            self.grid_y, self.grid_x = ai_core.calculate_global_orthogonal_grid(self.final_room_masks, self.image_shape)
-        else:
-            self.grid_y, self.grid_x = np.array([]), np.array([])
-        
-        self.finalized_polygons = self._get_finalized_polygons(self.final_room_masks)
-        self.exterior_polygon = self._get_exterior_polygon(self.finalized_polygons)
-        
-        self.walls, self.lines = [], manual_lines
-        self.walls.extend(manual_walls)
-        self.doors, self.windows, self.furniture = manual_doors, manual_windows, manual_furniture
+# In desktop_app.py, inside the FloorplanEditor class
 
-        self.selection, self._snap_cache_dirty = [], True
-        
-        self.segmentation_image = ai_core.generate_segmentation_image(self.raw_masks, self.image_shape)
-        self.output_image = self._generate_full_output_image()
-        if save_state: self.save_state()
-        self.redraw_all()
-        self.app.update_status("Reprocessing complete.")
+def reprocess_from_masks(self, new_masks=None, save_state=True):
+    self.app.update_status("Reprocessing from segmentation...")
+    if new_masks is not None:
+        self.raw_masks = new_masks
+    
+    # Keep track of manually drawn items
+    manual_walls, manual_lines = self.walls[:], self.lines[:]
+    manual_doors, manual_windows, manual_furniture = self.doors[:], self.windows[:], self.furniture[:]
+
+    # === THIS IS THE MAJOR CHANGE ===
+    # Call the single, authoritative function from ai_core
+    self.finalized_polygons, self.exterior_polygon = ai_core.vectorize_floorplan(
+        self.raw_masks,
+        self.image_shape,
+        self.vectorization_mode
+    )
+    # ===============================
+
+    # Restore manually drawn items
+    self.walls, self.lines = [], manual_lines
+    self.walls.extend(manual_walls)
+    self.doors, self.windows, self.furniture = manual_doors, manual_windows, manual_furniture
+
+    self.selection, self._snap_cache_dirty = [], True
+    
+    self.segmentation_image = ai_core.generate_segmentation_image(self.raw_masks, self.image_shape)
+    self.output_image = self._generate_full_output_image()
+    if save_state:
+        self.save_state()
+    self.redraw_all()
+    self.app.update_status("Reprocessing complete.")
 
     def set_vectorization_mode(self, mode_string):
         self.vectorization_mode = ai_core.VectorizationMode(mode_string)
