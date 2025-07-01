@@ -35,7 +35,7 @@ CONFIG = {
     "stability_score_thresh": 0.96,
     "min_mask_region_area": 500,
     "min_room_area": 3500,
-    "min_wall_area": 1000, # For DXF export based on template
+    "min_wall_area": 1000,
     "CONTAINMENT_THRESHOLD": 0.85,
     "simplify_tolerance": 1.0,
     "IDEALIZATION_GRID_SPACING": 10,
@@ -50,7 +50,26 @@ CONFIG = {
     "BACKGROUND_COLOR": [255, 255, 255],
     "WALL_COLOR": [0, 0, 0],
     "WALL_HATCH_COLOR": [180, 180, 180],
-    "dxf_scale": 0.025,
+
+    # --- IMPORTANT: THIS IS THE CORRECTED SCALE SETTING ---
+    # The scale to convert pixel units to real-world units (e.g., meters).
+    # You MUST calculate this for each new floorplan type to ensure accuracy.
+    #
+    # HOW TO CALCULATE:
+    # 1. Open your image in an editor (e.g., MS Paint, GIMP, Photoshop).
+    # 2. Find a line with a known real-world length (e.g., the 10.038 [m] line).
+    # 3. Measure the length of that line IN PIXELS.
+    #    (Example: The 10.038m line might be 502 pixels long).
+    # 4. Use the formula:
+    #    Scale Factor = Real-World Distance / Measured Pixel Distance
+    #
+    # Example Calculation for your point-cloud image:
+    # Real-World Distance = 10.038 meters
+    # Measured Pixel Distance = ~502 pixels (YOU MUST MEASURE THIS YOURSELF)
+    # dxf_scale = 10.038 / 502 = 0.0200
+    #
+    "dxf_scale": 0.0200,
+
     "FURNITURE_THICKNESS_PIXELS": 2,
     "DOOR_COLOR": [255, 0, 0],
     "WINDOW_COLOR": [0, 0, 255],
@@ -64,7 +83,7 @@ CONFIG = {
     "WINDOW_SELECTION_EDGE_COLOR": "#0000FF",
     "WINDOW_SELECTION_FILL_COLOR": "#0080FF",
     "PREVIEW_COLOR": "#FF00FFFF",
-    "HOVER_COLOR": "#FF8C00", # Using a distinct orange for hover
+    "HOVER_COLOR": "#FF8C00",
     "SEGMENT_EDIT_SELECTION_COLOR": [255, 255, 0, 128],
     "HANDLE_SIZE_PIXELS": 8,
     "HANDLE_COLOR": "#FF8C00",
@@ -126,9 +145,15 @@ def load_model_secure():
         raise RuntimeError(f"Model loading failed: {str(e)}")
 
 def process_image(image):
-    ratio = min(CONFIG["max_dimension"]/image.size[0], CONFIG["max_dimension"]/image.size[1])
-    new_size = (int(image.size[0]*ratio), int(image.size[1]*ratio))
-    return np.array(image.resize(new_size, Image.LANCZOS))
+    # Check if max_dimension exists and is a number, otherwise use original size
+    max_dim = CONFIG.get("max_dimension")
+    if isinstance(max_dim, (int, float)) and max_dim > 0:
+        ratio = min(max_dim / image.size[0], max_dim / image.size[1])
+        if ratio < 1.0: # Only downscale, don't upscale
+            new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
+            return np.array(image.resize(new_size, Image.LANCZOS))
+    return np.array(image)
+
 
 def process_contour(contour):
     poly = Polygon(contour).simplify(CONFIG["simplify_tolerance"], preserve_topology=True)
@@ -285,9 +310,7 @@ def generate_segmentation_image(masks, image_shape):
 # ==================== NEW/IMPROVED EXPORT HELPER FUNCTIONS ====================
 def clean_mask(mask):
     """Cleans up a binary mask using morphological operations."""
-    # Remove small noise with an opening operation
     opened_mask = binary_opening(mask, structure=create_disk(2))
-    # Fill small holes with a closing operation
     closed_mask = binary_closing(opened_mask, structure=create_disk(2))
     return closed_mask
 
@@ -387,8 +410,7 @@ def draw_door_symbol_svg(svg_elements, p1, p2, wall_thickness, H, W):
     svg_elements.append(f'  <line x1="{jamb2_p1[1]}" y1="{jamb2_p1[0]}" x2="{jamb2_p2[1]}" y2="{jamb2_p2[0]}" stroke="rgb({",".join(map(str, CONFIG["WALL_COLOR"]))})" stroke-width="1"/>')
 
 
-    # Add this code to the end of your ai_core.py file
-
+# ==================== CENTRALIZED VECTORIZATION LOGIC ====================
 def _idealize_contour(contour, dominant_y_grid, dominant_x_grid):
     if len(contour) < 4 or dominant_y_grid.size < 2 or dominant_x_grid.size < 2: return contour
     idealized_pts = [[dominant_y_grid[np.argmin(np.abs(dominant_y_grid - pt[0]))], dominant_x_grid[np.argmin(np.abs(dominant_x_grid - pt[1]))]] for pt in contour]
@@ -451,9 +473,7 @@ def get_final_architectural_contour(contour, vectorization_mode, grid_y=None, gr
     elif mode == VectorizationMode.HYBRID:
         return _hybrid_simplify_contour(simplified)
     
-    # ... Add other modes like TRACE, SIMPLIFY, RAW if needed, following the pattern ...
-    
-    else: # Default fallback
+    else: # Default fallback for other modes
         return measure.approximate_polygon(simplified, tolerance=CONFIG["RDP_TOLERANCE"])
 
 def vectorize_floorplan(raw_masks, image_shape, vectorization_mode):
@@ -461,16 +481,13 @@ def vectorize_floorplan(raw_masks, image_shape, vectorization_mode):
     High-level function to perform the entire vectorization process.
     This is the single source of truth for both desktop and web apps.
     """
-    # 1. Filter masks to find rooms
     min_area_override = CONFIG["MINIMALIST_MIN_ROOM_AREA"] if vectorization_mode == VectorizationMode.MINIMALIST else None
     final_room_masks = filter_and_get_rooms(raw_masks, min_area_override=min_area_override)
     
-    # 2. Calculate grid if needed
     grid_y, grid_x = np.array([]), np.array([])
     if vectorization_mode in [VectorizationMode.IDEALIZE, VectorizationMode.HYBRID, VectorizationMode.ARCHITECTURAL_CLEAN, VectorizationMode.MINIMALIST]:
         grid_y, grid_x = calculate_global_orthogonal_grid(final_room_masks, image_shape)
         
-    # 3. Process each room mask into a finalized polygon
     finalized_polygons = []
     for m in final_room_masks:
         contours = measure.find_contours(m['segmentation'], 0.5)
@@ -480,14 +497,12 @@ def vectorize_floorplan(raw_masks, image_shape, vectorization_mode):
         processed_contour = get_final_architectural_contour(largest_contour, vectorization_mode, grid_y, grid_x)
         
         if processed_contour is not None and len(processed_contour) > 2:
-            # Ensure validity
             poly = Polygon(processed_contour)
             if not poly.is_valid:
                 poly = poly.buffer(0)
             if not poly.is_empty:
                 finalized_polygons.append(np.array(poly.exterior.coords))
 
-    # 4. Calculate the exterior polygon from the union of all rooms
     exterior_polygon = None
     if finalized_polygons:
         shapely_polygons = [Polygon(p) for p in finalized_polygons if p is not None and len(p) > 2 and Polygon(p).is_valid]
